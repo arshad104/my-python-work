@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    
+    <script language="javascript" type="text/javascript" src="libraries/p5.js"></script>
+    <script language="javascript" type="text/javascript" src="libraries/p5.dom.js"></script>
+    <script language="javascript" type="text/javascript" src="libraries/p5.sound.js"></script>
+    
+    <meta charset="utf-8">
+    <title>Audio Test</title>
+    
+    <style type="text/css">
+
+      .button-class {
+        background-color:#3B9F7E;
+        border-radius:2px;
+        border:1px solid #566963;
+        display:inline-block;
+        margin-bottom: 5px;
+        cursor:pointer;
+        color:#ffffff;
+        font-family:Arial;
+        font-size:15px;
+        font-weight:bold;
+        padding:6px 14px;
+        text-decoration:none;
+        text-shadow:0px -1px 0px #2b665e;
+      }
+      .button-class:hover {
+        background-color:#6c7c7c;
+      }
+      .bk {
+        background-color:#768d87 !important;
+      }
+    
+    </style>
+
+  </head>
+
+  <body>
+
+    <script type="text/javascript">
+
+      var mic, recorder, soundFile;
+
+      var recording_state = false; // mousePress will toggle recording state
+
+      function setup() {
+        // create canvas, to show animation
+        cn = createCanvas(150,150);
+        cn.position(40,50);
+        
+        background(0);
+        // create button
+        button = createButton('Start Recording');
+        // add css class to button
+        button.addClass("button-class");
+        // set button position
+        button.position(40, 10);
+        // call function on button click
+        button.mousePressed(buttonPressed);
+        
+        // create an audio in
+        mic = new p5.AudioIn();
+        // users must manually enable their browser microphone for recording to work properly!
+        mic.start();
+        // create a sound recorder
+        recorder = new p5.SoundRecorder();
+        // connect the mic to the recorder
+        recorder.setInput(mic);
+        // create an empty sound file that we will use to playback the recording
+        soundFile = new p5.SoundFile();
+      }
+
+      function buttonPressed() {
+        // toggle recording state
+        recording_state = !recording_state;
+        // change button css according to state
+        changeButtonCss();
+        // use the '.enabled' boolean to make sure user enabled the mic (otherwise we'd record silence)
+        if (recording_state && mic.enabled) {
+          // Tell recorder to record to a p5.SoundFile which we will use for playback or save
+          recorder.record(soundFile);
+          console.log('Recording now...');
+        }
+        else {
+          // stop recorder, and send the result to soundFile
+          recorder.stop();
+          // save sound as a wav file
+          saveSound(soundFile, 'mySound.wav');
+          console.log('Recording Stoped and Saved!');
+          // get audio as an array from a channel
+          var channel1 = soundFile.buffer.getChannelData(0);    
+          console.log(channel1);
+          // send audio as a bufferArray to server, data will be sent as byte string
+          ws.send(channel1.buffer);
+        }
+      }
+
+      function draw(){
+        background(0);
+        if (recording_state) {
+          micLevel = mic.getLevel();
+          ellipse(width/2, constrain(height-micLevel*height*10, 0, height), 10, 10);
+        }
+        else {
+          ellipse(width/2, constrain(height, 0, height), 10, 10);
+        }
+      }
+
+      function changeButtonCss() {
+        button.elt.innerText = recording_state ? "Stop Recording" : "Start Recording";
+        button.elt.style.background = recording_state ? "#B54D4D" : "#3B9F7E";
+      }
+
+      ////#Connect to Web Socket
+      var ws = new WebSocket("ws://localhost:8087/");
+      
+      ws.onmessage = function(e) {
+        output(e.data);
+      };
+      
+      ws.onclose = function() {
+        output("Server closed..!!");
+      };
+
+      ws.onerror = function(e) {
+        output("Error Occured!");
+      };
+      
+      function output(str) {
+        console.log(str);
+      }
+
+    </script>
+
+  </body>
+
+</html>
